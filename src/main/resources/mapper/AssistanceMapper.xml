@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="org.ecnumc.clarinet.mapper.AssistanceMapper">
+    <select id="countAll" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM assistance
+    </select>
+
+    <select id="countByUid" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM assistance WHERE uid = #{uid}
+    </select>
+
+    <select id="countAllBetween" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM assistance WHERE created_at BETWEEN #{begin_time} AND #{end_time}
+    </select>
+
+    <select id="countByUidBetween" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM assistance WHERE uid = #{uid} AND (created_at BETWEEN #{begin_time} AND #{end_time})
+    </select>
+
+    <select id="countAllDealtBetween" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM assistance WHERE (created_at BETWEEN #{begin_time} AND #{end_time}) AND dealt = #{dealt}
+    </select>
+
+    <select id="countByUidDealtBetween" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM assistance WHERE uid = #{uid} AND (created_at BETWEEN #{begin_time} AND #{end_time}) AND dealt = #{dealt}
+    </select>
+
+    <select id="queryByUid" resultType="org.ecnumc.clarinet.po.Assistance">
+        SELECT id, uid, filename, dealt, description, created_at, updated_at FROM assistance WHERE uid = #{uid} ORDER BY updated_at DESC LIMIT #{limit}
+    </select>
+</mapper>
