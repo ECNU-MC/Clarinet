@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Param;
 import org.ecnumc.clarinet.po.Customer;
 
+import javax.annotation.Nullable;
+
 /**
  * C 端客户表 Mapper
  *
@@ -22,5 +24,6 @@ public interface CustomerMapper extends BaseMapper<Customer> {
 	 * @param qq 用户 QQ
 	 * @return 用户
 	 */
+	@Nullable
 	Customer queryByQq(@Param("qq") String qq);
 }

@@ -69,4 +69,20 @@ public interface AssistanceMapper extends BaseMapper<Assistance> {
 	 * @return 最近几条提问历史
 	 */
 	List<Assistance> queryByUid(@Param("uid") String uid, @Param("limit") int limit);
+
+	/**
+	 * 根据正向关键词搜索求助记录
+	 * @param keywords 关键词
+	 * @param limit 限制最大条数
+	 * @return 符合条件的求助记录
+	 */
+	List<Assistance> queryByKeywords(@Param("keywords") String keywords, @Param("limit") int limit);
+
+	/**
+	 * 根据正负向关键词搜索求助记录
+	 * @param keywords 正负向关键词
+	 * @param limit 限制最大条数
+	 * @return 符合条件的求助记录
+	 */
+	List<Assistance> queryByKeywordsBooleanMode(@Param("keywords") String keywords, @Param("limit") int limit);
 }

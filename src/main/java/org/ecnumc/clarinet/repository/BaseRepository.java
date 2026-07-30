@@ -25,7 +25,9 @@ public abstract class BaseRepository<T extends BaseMapper<?>> {
 	protected <R> R execute(MapperFunction<T, R> action) {
 		try (SqlSession session = this.sqlSessionFactory.openSession()) {
 			T mapper = session.getMapper(this.mapperClass);
-			return action.apply(mapper);
+			R ret = action.apply(mapper);
+			session.commit();
+			return ret;
 		}
 	}
 

@@ -29,6 +29,14 @@
     </select>
 
     <select id="queryByUid" resultType="org.ecnumc.clarinet.po.Assistance">
-        SELECT id, uid, filename, dealt, description, created_at, updated_at FROM assistance WHERE uid = #{uid} ORDER BY updated_at DESC LIMIT #{limit}
+        SELECT id, session_id, uid, filename, dealt, description, created_at, updated_at FROM assistance WHERE uid = #{uid} ORDER BY updated_at DESC LIMIT #{limit}
+    </select>
+
+    <select id="queryByKeywords" resultType="org.ecnumc.clarinet.po.Assistance">
+        SELECT id, session_id, uid, filename, dealt, description, created_at, updated_at FROM assistance WHERE MATCH(description) AGAINST(#{keywords}) ORDER BY updated_at DESC LIMIT #{limit}
+    </select>
+
+    <select id="queryByKeywordsBooleanMode" resultType="org.ecnumc.clarinet.po.Assistance">
+        SELECT id, session_id, uid, filename, dealt, description, created_at, updated_at FROM assistance WHERE MATCH(description) AGAINST(#{keywords} IN BOOLEAN MODE) ORDER BY updated_at DESC LIMIT #{limit}
     </select>
 </mapper>

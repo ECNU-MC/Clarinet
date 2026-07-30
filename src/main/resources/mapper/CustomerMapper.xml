@@ -5,10 +5,15 @@
 
 <mapper namespace="org.ecnumc.clarinet.mapper.CustomerMapper">
     <select id="queryByUid" resultType="org.ecnumc.clarinet.po.Customer">
-        SELECT id, uid, qq, created_at FROM customer WHERE uid = #{uid}
+        SELECT id, uid, qq, permission, created_at FROM customer WHERE uid = #{uid}
     </select>
 
     <select id="queryByQq" resultType="org.ecnumc.clarinet.po.Customer">
-        SELECT id, uid, qq, created_at FROM customer WHERE qq = #{qq}
+        SELECT id, uid, qq, permission, created_at FROM customer WHERE qq = #{qq}
     </select>
+
+    <insert id="insert" parameterType="org.ecnumc.clarinet.po.Customer" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO customer (uid, qq, permission)
+        VALUES (#{uid}, #{qq}, #{permission})
+    </insert>
 </mapper>

@@ -21,24 +21,27 @@ import java.util.Map;
  *
  * @author liudongyu
  */
-public final class RecentHistoryTool extends ToolBase {
+public final class RecentAssistanceTool extends ToolBase {
+	private static final String PARAM_UID = "uid";
+	private static final String PARAM_LIMIT = "limit";
+
 	private final AssistanceQueryRepository assistanceQueryRepository;
 
 	/**
 	 * 构造函数
 	 * @param sqlSessionFactory SQL 上下文
 	 */
-	public RecentHistoryTool(SqlSessionFactory sqlSessionFactory) {
+	public RecentAssistanceTool(SqlSessionFactory sqlSessionFactory) {
 		super(
-				ToolBase.builder().name("recent_history").description("获取用户近期提问历史")
+				ToolBase.builder().name("recent_assistance").description("获取用户近期提问历史")
 						.inputSchema(Map.of(
 								"type", "object",
 								"properties", Map.of(
-										"user_id", Map.of(
+										PARAM_UID, Map.of(
 												"type", "string",
 												"description", "用户 ID"
 										),
-										"limit", Map.of(
+										PARAM_LIMIT, Map.of(
 												"type", "integer",
 												"default", 5,
 												"minimum", 1,
@@ -46,7 +49,7 @@ public final class RecentHistoryTool extends ToolBase {
 												"description", "查询的历史记录最大条数"
 										)
 								),
-								"required", List.of("user_id")
+								"required", List.of(PARAM_UID)
 						))
 						.readOnly(true)
 						.concurrencySafe(true)
@@ -61,8 +64,8 @@ public final class RecentHistoryTool extends ToolBase {
 
 	@Override
 	public Mono<ToolResultBlock> callAsync(ToolCallParam param) {
-		String uid = (String) param.getInput().getOrDefault("user_id", "");
-		Integer limit = (Integer) param.getInput().getOrDefault("limit", 5);
+		String uid = (String) param.getInput().getOrDefault(PARAM_UID, "");
+		Integer limit = (Integer) param.getInput().getOrDefault(PARAM_LIMIT, 5);
 		ClarinetLogger.debug("查询用户 " + uid + " 的最近 " + limit + " 条提问历史");
 
 		try {
@@ -72,8 +75,11 @@ public final class RecentHistoryTool extends ToolBase {
 					.toList();
 			return Mono.just(ToolResultBlock.of(
 					TextBlock.builder().text(
-							"查询到 " + list.size() + " 条记录" + (list.isEmpty() ? "。" : "：") +
-									"\n\n" + StringUtils.join(list, ",\n")
+							"查询到 " + list.size() + " 条记录" + (
+									list.isEmpty() ?
+											"。" :
+											"：\n\n" + StringUtils.join(list, ",\n")
+							)
 					).build()
 			));
 		} catch (Exception e) {

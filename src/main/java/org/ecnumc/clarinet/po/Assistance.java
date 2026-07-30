@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
+import javax.annotation.Nullable;
 import java.util.Date;
 
 /**
@@ -19,6 +20,9 @@ public class Assistance {
 	private Integer id;
 
 	@TableField
+	private String sessionId;
+
+	@TableField
 	private String uid;
 
 	@TableField
@@ -29,6 +33,9 @@ public class Assistance {
 
 	@TableField
 	private String description;
+
+	@TableField @Nullable
+	private String parentSessionId;
 
 	@TableField
 	private Date createdAt;

@@ -25,6 +25,7 @@ import java.nio.file.Path;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SystemConfig {
+	// ======== 模型配置 ========
 	/** 模型协议 */
 	private String modelProtocol;
 	/** 模型名称 */
@@ -34,6 +35,16 @@ public class SystemConfig {
 	private String apiKey;
 	/** 模型服务地址 */
 	private String baseUrl;
+
+	// ======== 服务配置 ========
+
+	/** 服务器端口，用于接收消息 */
+	private int port;
+
+	// ======== 用户设置 ========
+
+	/** 唤醒词，仅管理员可用 */
+	private String wakeupWord;
 
 	/**
 	 * 解析系统配置文件
@@ -47,7 +58,9 @@ public class SystemConfig {
 					"openai",
 					"deepseek-v4-flash",
 					"sk-kfccrazythursdayvivo50",
-					"https://api.deepseek.com"
+					"https://api.deepseek.com",
+					2565,
+					"柯拉妮"
 			);
 			try {
 				boolean success = file.createNewFile();

@@ -21,30 +21,34 @@ import java.util.Map;
  *
  * @author liudongyu
  */
-public final class CountDateAssistanceTool extends ToolBase {
+public final class StatsTool extends ToolBase {
+	private static final String PARAM_UID = "uid";
+	public static final String PARAM_DATE = "date";
+	public static final String PARAM_DEALT = "dealt";
+
 	private final AssistanceQueryRepository assistanceQueryRepository;
 
 	/**
 	 * 构造函数
 	 * @param sqlSessionFactory SQL 上下文
 	 */
-	public CountDateAssistanceTool(SqlSessionFactory sqlSessionFactory) {
+	public StatsTool(SqlSessionFactory sqlSessionFactory) {
 		super(
-				ToolBase.builder().name("count_date_assistance").description("获取当日用户求助总数")
+				ToolBase.builder().name("stats").description("获取当日用户求助总数")
 						.inputSchema(Map.of(
 								"type", "object",
 								"properties", Map.of(
-										"date", Map.of(
+										PARAM_DATE, Map.of(
 												"type", "string",
 												"description", "日期（格式“yyyy-MM-dd”，默认今天）"
 										),
-										"user_id", Map.of(
+										PARAM_UID, Map.of(
 												"type", "string",
-												"description", "用户 ID（不传则查询所有用户的求助总数）"
+												"description", "用户 ID（不填时查询所有用户的求助总数）"
 										),
-										"dealt", Map.of(
+										PARAM_DEALT, Map.of(
 												"type", "integer",
-												"description", "是否已被解决（1 表示查询解决的数量，0 表示查询未解决的数量，不传则查询所有求助总数）"
+												"description", "是否已被解决（1 表示查询解决的数量，0 表示查询未解决的数量，不填时查询所有求助总数）"
 										)
 								),
 								"required", List.of()
@@ -62,9 +66,9 @@ public final class CountDateAssistanceTool extends ToolBase {
 
 	@Override
 	public Mono<ToolResultBlock> callAsync(ToolCallParam param) {
-		String uid = (String) param.getInput().get("uid");
-		String date = (String) param.getInput().getOrDefault("date", LocalDate.now().toString());
-		Integer dealt = (Integer) param.getInput().get("dealt");
+		String uid = (String) param.getInput().get(PARAM_UID);
+		String date = (String) param.getInput().getOrDefault(PARAM_DATE, LocalDate.now().toString());
+		Integer dealt = (Integer) param.getInput().get(PARAM_DEALT);
 		ClarinetLogger.debug("查询日期 " + date + " 的 " + this.getDealtName(dealt) + "用户求助总数");
 
 		try {

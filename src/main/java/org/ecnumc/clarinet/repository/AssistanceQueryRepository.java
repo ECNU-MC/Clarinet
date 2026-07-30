@@ -57,4 +57,19 @@ public class AssistanceQueryRepository extends BaseRepository<AssistanceMapper> 
 		}
 		return this.execute(mapper -> mapper.countByUidDealtBetween(uid, begin, end, dealt));
 	}
+
+	/**
+	 * 根据关键词搜索求助记录
+	 * @param keywords 正向关键词
+	 * @param excludedKeywords 负向关键词
+	 * @param limit 限制最大条数
+	 * @return 符合条件的求助记录
+	 */
+	public List<Assistance> queryByKeywords(List<String> keywords, List<String> excludedKeywords, int limit) {
+		if(!excludedKeywords.isEmpty()) {
+			String query = "+" + String.join(" +", keywords) + " -" + String.join(" -", excludedKeywords);
+			return this.execute(mapper -> mapper.queryByKeywordsBooleanMode(query, limit));
+		}
+		return this.execute(mapper -> mapper.queryByKeywords(String.join(" ", keywords), limit));
+	}
 }

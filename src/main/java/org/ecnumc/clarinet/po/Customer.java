@@ -25,5 +25,8 @@ public class Customer {
 	private String qq;
 
 	@TableField
+	private String permission;
+
+	@TableField
 	private Date createdAt;
 }
