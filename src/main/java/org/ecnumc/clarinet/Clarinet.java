@@ -14,6 +14,7 @@ import org.ecnumc.clarinet.config.SystemConfig;
 import org.ecnumc.clarinet.handler.MessageHandler;
 import org.ecnumc.clarinet.repository.CustomerRepository;
 import org.ecnumc.clarinet.repository.SessionRepository;
+import org.ecnumc.clarinet.state.ClarinetStateStore;
 import org.ecnumc.clarinet.tool.*;
 
 import java.io.IOException;
@@ -50,23 +51,27 @@ public final class Clarinet {
 			throw new IllegalStateException("初始化 MyBatis 失败", e);
 		}
 		Toolkit toolkit = new Toolkit();
+		SendMessageTool sendMessageTool = new SendMessageTool();
+		SendReactionTool sendReactionTool = new SendReactionTool();
+		toolkit.registerAgentTool(sendMessageTool);
+		toolkit.registerAgentTool(sendReactionTool);
 		toolkit.registerAgentTool(new Base64DecodeTool());
 		toolkit.registerAgentTool(new Base64EncodeTool());
 		toolkit.registerAgentTool(new ReadTool());
 		toolkit.registerAgentTool(new RecentAssistanceTool(sqlSessionFactory));
-		toolkit.registerAgentTool(new SendMessageTool());
 		toolkit.registerAgentTool(new StatsTool(sqlSessionFactory));
 		try(HarnessAgent agent = HarnessAgent.builder()
 				.name("clarinet")
 				.model(getModel())
 				.sysPrompt(getSysPrompt())
 				.workspace(Paths.get(WORKSPACE))
+				.stateStore(new ClarinetStateStore())
 				.toolkit(toolkit)
 				.compaction(CompactionConfig.builder().triggerTokens(160_000).build())
 				.build()) {
 			HttpServer server = HttpServer.create(new InetSocketAddress(SYSTEM_CONFIG.getPort()), 0);
 			server.createContext("/api/msg", new MessageHandler(
-					agent,
+					agent, sendMessageTool, sendReactionTool,
 					new CustomerRepository(sqlSessionFactory),
 					new SessionRepository(Paths.get(WORKSPACE, "sessions"))
 			));

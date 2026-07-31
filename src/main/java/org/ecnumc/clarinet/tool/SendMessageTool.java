@@ -5,11 +5,13 @@ import io.agentscope.core.permission.PermissionContextState;
 import io.agentscope.core.permission.PermissionDecision;
 import io.agentscope.core.tool.ToolBase;
 import io.agentscope.core.tool.ToolCallParam;
+import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * 发送解答消息
@@ -18,6 +20,12 @@ import java.util.Map;
  */
 public class SendMessageTool extends ToolBase {
 	private static final String PARAM_MESSAGE = "message";
+
+	/** 在模型调用以外，不执行发送消息 */
+	public static final Consumer<String> EMPTY = ignored -> {};
+
+	@Setter
+	private Consumer<String> sender = EMPTY;
 
 	/**
 	 * 构造函数
@@ -53,7 +61,7 @@ public class SendMessageTool extends ToolBase {
 	@Override
 	public Mono<ToolResultBlock> callAsync(ToolCallParam param) {
 		String message = (String) param.getInput().getOrDefault(PARAM_MESSAGE, "");
-		// TODO
+		this.sender.accept(message);
 		return Mono.just(ToolResultBlock.text("发送成功！消息 ID："));
 	}
 }

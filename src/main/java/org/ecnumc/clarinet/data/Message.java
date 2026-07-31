@@ -34,6 +34,10 @@ public class Message implements Serializable, Comparable<Message> {
 	@Nullable
 	private String uid;
 
+	/** 昵称 */
+	@Nullable
+	private String nickname;
+
 	/** 发言内容 */
 	private String content;
 

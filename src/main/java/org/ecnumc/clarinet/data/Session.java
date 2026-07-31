@@ -50,7 +50,7 @@ public class Session {
 					Msg.builder()
 							.id(message.getId())
 							.role(MessageRole.byCode(message.getRole()).cast())
-							.textContent(message.getContent())
+							.textContent("<message uid=\"" + message.getUid() + "\" nickname=\"" + message.getNickname() + "\">" + message.getContent() + "</message>")
 							.timestamp(TIMESTAMP_FORMATTER.format(message.getSentAt().toInstant()))
 							.build()
 			).toList();

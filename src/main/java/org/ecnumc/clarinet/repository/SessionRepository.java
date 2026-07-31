@@ -5,9 +5,9 @@ import com.alibaba.fastjson.JSONException;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.api.client.util.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import org.ecnumc.clarinet.ClarinetLogger;
-import org.ecnumc.clarinet.convert.SessionConvert;
 import org.ecnumc.clarinet.data.Message;
 import org.ecnumc.clarinet.data.Session;
 
@@ -17,10 +17,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
-import java.util.Date;
-import java.util.List;
-import java.util.PriorityQueue;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -49,7 +46,7 @@ public class SessionRepository {
 			.build();
 
 	/** 消息上下文 */
-	private final PriorityQueue<Message> messages = Queues.newPriorityQueue();
+	private final Map<String, PriorityQueue<Message>> messages = Maps.newHashMap();
 
 	/** 随机数发生器（线程安全，可以随意调用） */
 	private final SecureRandom random = new SecureRandom();
@@ -66,21 +63,25 @@ public class SessionRepository {
 	 * 收到群聊消息，存入上下文。<br/>
 	 * 会阻塞消息队列，避免并发修改。
 	 *
+	 * @param groupId 群号
 	 * @param id 消息 ID
 	 * @param role 消息角色
 	 * @param type 消息类型
 	 * @param uid 用户 ID
+	 * @param nickname 用户昵称
 	 * @param content 消息内容
 	 * @param sentAt 发送时间
 	 *
 	 * @return 消息
 	 */
-	public Message addMessage(String id, String role, String type, @Nullable String uid, String content, Date sentAt) {
-		Message message = new Message(id, role, type, uid, content, sentAt);
+	public Message addMessage(String groupId, String id, String role, String type,
+							  @Nullable String uid, @Nullable String nickname, String content, Date sentAt) {
+		Message message = new Message(id, role, type, uid, nickname, content, sentAt);
 		synchronized (this.messages) {
-			this.messages.add(message);
-			while(this.messages.size() > MAX_QUEUE_SIZE) {
-				this.messages.poll();
+			PriorityQueue<Message> pq = this.messages.computeIfAbsent(groupId, ignored -> Queues.newPriorityQueue());
+			pq.add(message);
+			while(pq.size() > MAX_QUEUE_SIZE) {
+				pq.poll();
 			}
 		}
 		return message;
@@ -88,12 +89,18 @@ public class SessionRepository {
 
 	/**
 	 * 获取消息上下文（最近 100 条）
+	 * @param groupId 群号
 	 * @return 消息上下文
 	 */
-	public List<Message> getMessageContext() {
+	public List<Message> getMessageContext(String groupId) {
 		PriorityQueue<Message> pq;
 		synchronized (this.messages) {
-			pq = Queues.newPriorityQueue(this.messages);
+			pq = this.messages.get(groupId);
+			if(pq == null) {
+				pq = Queues.newPriorityQueue();
+			} else {
+				pq = Queues.newPriorityQueue(pq);
+			}
 		}
 		List<Message> ret = Lists.newArrayList();
 		while(!pq.isEmpty()) {
@@ -163,7 +170,7 @@ public class SessionRepository {
 				Files.createDirectories(this.sessionFolder);
 			}
 			// 将 Session 转换为持久化 JSON 字符串
-			String json = SessionConvert.toJsonPersistentString(session);
+			String json = JSON.toJSONString(session);
 			// 写入文件（覆盖原文件）
 			Files.writeString(filePath, json, java.nio.charset.StandardCharsets.UTF_8);
 		} catch (IOException e) {
