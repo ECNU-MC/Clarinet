@@ -62,6 +62,6 @@ public class SendMessageTool extends ToolBase {
 	public Mono<ToolResultBlock> callAsync(ToolCallParam param) {
 		String message = (String) param.getInput().getOrDefault(PARAM_MESSAGE, "");
 		this.sender.accept(message);
-		return Mono.just(ToolResultBlock.text("发送成功！消息 ID："));
+		return Mono.just(ToolResultBlock.text("发送成功。"));
 	}
 }

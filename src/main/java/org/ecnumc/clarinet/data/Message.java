@@ -3,6 +3,7 @@ package org.ecnumc.clarinet.data;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.Nullable;
 import java.io.Serial;
@@ -34,6 +35,10 @@ public class Message implements Serializable, Comparable<Message> {
 	@Nullable
 	private String uid;
 
+	/** 称谓，无称谓时留空 */
+	@Nullable
+	private String appellation;
+
 	/** 昵称 */
 	@Nullable
 	private String nickname;
@@ -47,5 +52,22 @@ public class Message implements Serializable, Comparable<Message> {
 	@Override
 	public int compareTo(Message o) {
 		return this.getSentAt().compareTo(o.getSentAt());
+	}
+
+	/**
+	 * 将消息转化为模型可用输入
+	 *
+	 * @return 模型可读消息
+	 */
+	public String buildTextContent() {
+		StringBuilder sb = new StringBuilder();
+		sb.append("<message type=\"").append(this.getType())
+				.append("\" uid=\"").append(this.getUid())
+				.append("\" nickname=\"").append(this.getNickname());
+		if(!StringUtils.isEmpty(this.getAppellation())) {
+			sb.append("\" appellation=\"").append(this.getAppellation());
+		}
+		sb.append("\">").append(this.getContent()).append("</message>");
+		return sb.toString();
 	}
 }

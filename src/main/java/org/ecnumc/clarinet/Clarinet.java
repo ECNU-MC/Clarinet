@@ -53,17 +53,18 @@ public final class Clarinet {
 		Toolkit toolkit = new Toolkit();
 		SendMessageTool sendMessageTool = new SendMessageTool();
 		SendReactionTool sendReactionTool = new SendReactionTool();
+		SessionRepository sessionRepository = new SessionRepository(Paths.get(WORKSPACE, "sessions"));
 		toolkit.registerAgentTool(sendMessageTool);
 		toolkit.registerAgentTool(sendReactionTool);
 		toolkit.registerAgentTool(new Base64DecodeTool());
 		toolkit.registerAgentTool(new Base64EncodeTool());
+		toolkit.registerAgentTool(new CollectChatLogTool(sessionRepository));
 		toolkit.registerAgentTool(new ReadTool());
 		toolkit.registerAgentTool(new RecentAssistanceTool(sqlSessionFactory));
 		toolkit.registerAgentTool(new StatsTool(sqlSessionFactory));
 		try(HarnessAgent agent = HarnessAgent.builder()
 				.name("clarinet")
 				.model(getModel())
-				.sysPrompt(getSysPrompt())
 				.workspace(Paths.get(WORKSPACE))
 				.stateStore(new ClarinetStateStore())
 				.toolkit(toolkit)
@@ -73,7 +74,7 @@ public final class Clarinet {
 			server.createContext("/api/msg", new MessageHandler(
 					agent, sendMessageTool, sendReactionTool,
 					new CustomerRepository(sqlSessionFactory),
-					new SessionRepository(Paths.get(WORKSPACE, "sessions"))
+					sessionRepository
 			));
 			AtomicInteger counter = new AtomicInteger(0);
 			server.setExecutor(Executors.newFixedThreadPool(10, job -> new Thread(
@@ -115,10 +116,6 @@ public final class Clarinet {
 					"please check your system config."
 			);
 		};
-	}
-
-	private static String getSysPrompt() {
-		return "";
 	}
 
 	private Clarinet() {

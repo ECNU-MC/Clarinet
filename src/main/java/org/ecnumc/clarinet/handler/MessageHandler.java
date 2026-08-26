@@ -5,6 +5,7 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
+import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.message.Msg;
 import io.agentscope.harness.agent.HarnessAgent;
 import org.ecnumc.clarinet.ClarinetLogger;
@@ -69,7 +70,7 @@ public record MessageHandler(HarnessAgent agent,
 			Date repliedSentAt = Date.from(LocalDateTime.parse(json.getString("sent_at"), FORMATTER).atZone(ZoneId.systemDefault()).toInstant());
 
 			Customer customer = this.customerRepository.getOrCreateCustomerByQq(qq);
-			Message message = this.sessionRepository.addMessage(groupId, messageId, role, type, customer.getUid(), nickname, content, sentAt);
+			Message message = this.sessionRepository.addMessage(groupId, messageId, role, type, customer.getUid(), customer.getAppellation(), nickname, content, sentAt);
 			Session session = repliedMessageId == null ? null : this.sessionRepository.getSessionFromMessageId(repliedMessageId);
 			if(session == null && MessageType.byCode(type).canStartSession(content, customer)) {
 				session = this.sessionRepository.createEmptySession();
@@ -78,7 +79,7 @@ public record MessageHandler(HarnessAgent agent,
 					Customer repliedCustomer = this.customerRepository.getOrCreateCustomerByQq(repliedMessageQq);
 					Message repliedMessage = new Message(
 							repliedMessageId, repliedMessageRole, repliedMessageType,
-							repliedCustomer.getUid(), repliedMessageNickname, repliedMessageContent, repliedSentAt
+							repliedCustomer.getUid(), repliedCustomer.getAppellation(), repliedMessageNickname, repliedMessageContent, repliedSentAt
 					);
 					session.addMessage(repliedMessage);
 				}
@@ -93,7 +94,10 @@ public record MessageHandler(HarnessAgent agent,
 			synchronized (this.agent) {
 				JSONArray jsonArray = new JSONArray();
 				this.sendMessageTool.setSender(jsonArray::add);
-				Msg result = this.agent.call(session.cast()).block();
+				RuntimeContext context = RuntimeContext.builder()
+						.put("groupId", groupId)
+						.build();
+				Msg result = this.agent.call(session.cast(), context).block();
 				if(result != null) {
 					ClarinetLogger.info(result.getTextContent());
 				}

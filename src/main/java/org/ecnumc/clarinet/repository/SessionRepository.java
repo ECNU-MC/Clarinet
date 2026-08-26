@@ -74,9 +74,9 @@ public class SessionRepository {
 	 *
 	 * @return 消息
 	 */
-	public Message addMessage(String groupId, String id, String role, String type,
-							  @Nullable String uid, @Nullable String nickname, String content, Date sentAt) {
-		Message message = new Message(id, role, type, uid, nickname, content, sentAt);
+	public Message addMessage(String groupId, String id, String role, String type, @Nullable String uid,
+							  @Nullable String appellation, @Nullable String nickname, String content, Date sentAt) {
+		Message message = new Message(id, role, type, uid, appellation, nickname, content, sentAt);
 		synchronized (this.messages) {
 			PriorityQueue<Message> pq = this.messages.computeIfAbsent(groupId, ignored -> Queues.newPriorityQueue());
 			pq.add(message);

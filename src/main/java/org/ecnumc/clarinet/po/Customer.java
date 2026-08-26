@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
+import javax.annotation.Nullable;
 import java.util.Date;
 
 /**
@@ -23,6 +24,9 @@ public class Customer {
 
 	@TableField
 	private String qq;
+
+	@TableField @Nullable
+	private String appellation;
 
 	@TableField
 	private String permission;

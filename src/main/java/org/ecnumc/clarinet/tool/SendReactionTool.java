@@ -33,17 +33,18 @@ public class SendReactionTool extends ToolBase {
 	 */
 	public SendReactionTool() {
 		super(
-				ToolBase.builder().name("send_reaction").description("发送表情包。在闲聊场景中使用，可以独立发送也可以配合 send_message 使用。不必发送地过于频繁，偶尔使用可以活跃气氛，避免冰冷的“人机感”")
-						.inputSchema(Map.of(
-								"type", "object",
-								"properties", Map.of(
-										PARAM_REACTION, Map.of(
-												"type", "string",
-												"description", "表情包编码。可供选择的有：\n\n" + Reaction.buildDescription() + "\n"
-										)
-								),
-								"required", List.of(PARAM_REACTION)
-						))
+				ToolBase.builder().name("send_reaction").description(
+						"发送表情包。在闲聊场景中使用，可以独立发送，也可以配合 send_message 使用。不要在正式解答问题时使用，也不必发送地过于频繁，偶尔使用可以活跃气氛，避免冰冷的“人机感”"
+				).inputSchema(Map.of(
+						"type", "object",
+						"properties", Map.of(
+								PARAM_REACTION, Map.of(
+										"type", "string",
+										"description", "表情包编码。可供选择的有：\n\n" + Reaction.buildDescription() + "\n"
+								)
+						),
+						"required", List.of(PARAM_REACTION)
+				))
 		);
 	}
 
@@ -67,6 +68,6 @@ public class SendReactionTool extends ToolBase {
 		} catch (Exception e) {
 			return Mono.just(ToolResultBlock.error(e.getMessage()));
 		}
-		return Mono.just(ToolResultBlock.text("发送成功！消息 ID："));
+		return Mono.just(ToolResultBlock.text("发送成功。"));
 	}
 }
