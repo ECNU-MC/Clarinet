@@ -43,14 +43,10 @@ Clarinet（柯拉妮）是一个基于 [AgentScope Harness](https://github.com/a
 
 ```bash
 # Windows
-gradlew.bat classes     # 仅编译（main + test）
-gradlew.bat jar         # 编译并打包 jar
-gradlew.bat build -x test  # 完整构建（跳过测试任务）
+gradlew.bat build   # 完整构建（编译 + 打包 + 测试）
 
 # Linux / macOS
-./gradlew classes
-./gradlew jar
-./gradlew build -x test
+./gradlew build
 ```
 
 构建产物位于 `build/libs/`（`clarinet-0.0.1.jar`）。
@@ -220,7 +216,7 @@ clarinet/
 
 ## 开发约定
 
-1. **构建验证**：修改后至少执行 `gradlew.bat classes` 或 `gradlew.bat jar` 确认无编译错误（`build` 会因测试任务缺少 JUnit Platform launcher 失败，见“构建”一节）；涉及 SQL 或数据层的改动，用 `src/test` 下的 `main` 方法脚本做集成验证（需本地 MySQL）。
+1. **构建验证**：修改后执行 `gradlew.bat build` 确认完整构建（含编译与打包）通过；涉及 SQL 或数据层的改动，用 `src/test` 下的 `main` 方法脚本做集成验证（需本地 MySQL）。
 2. **命名与风格**：遵循仓库统一约定——类名大驼峰、方法/变量小驼峰、常量全大写加下划线、包名全小写；Javadoc 使用中文；可能为空的字段/参数/返回值使用 `@Nullable` 注解。
 3. **会话并发**：`MessageHandler` 对 `agent` 实例做了 `synchronized` 串行化，新增并发路径时不得绕过该锁并发调用同一 `HarnessAgent`。
 4. **新工具接入**：工具类需同时完成权限校验（`checkPermissions`）与注册（`Clarinet.main`），否则不会生效；只读工具应声明 `readOnly(true)` / `concurrencySafe(true)`。

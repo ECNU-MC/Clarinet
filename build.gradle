@@ -44,10 +44,16 @@ dependencies {
     testAnnotationProcessor("org.projectlombok:lombok:1.18.42")
     testAnnotationProcessor('org.mapstruct:mapstruct-processor:1.6.3')
     testAnnotationProcessor('org.projectlombok:lombok-mapstruct-binding:0.2.0')
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
+	// 现有测试代码为带 main 方法的集成验证脚本（需本地 MySQL），并非 JUnit 用例，
+	// 关闭"未发现测试即失败"以允许完整构建通过
+	failOnNoDiscoveredTests = false
 }
 
 javadoc {
