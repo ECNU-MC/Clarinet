@@ -1,5 +1,6 @@
 package org.ecnumc.clarinet.tool;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.message.ToolResultBlock;
@@ -19,9 +20,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 /**
@@ -34,13 +36,14 @@ public final class ReadTool extends ToolBase {
 	private static final String PARAM_TAIL = "tail";
 	private static final String PARAM_BEGIN = "begin";
 	private static final String PARAM_END = "end";
+	private static final String PARAM_LN = "line_number";
 
 	/**
 	 * 构造函数
 	 */
 	public ReadTool() {
 		super(
-				ToolBase.builder().name("read").description("阅读文件内容，支持全量读取、末尾读取和随机连续读取")
+				ToolBase.builder().name("read").description("阅读文件内容，支持全量读取、末尾读取和随机连续读取，默认每行返回行号元数据，格式为“行号: 一行内容”")
 						.inputSchema(Map.of(
 								"type", "object",
 								"properties", Map.of(
@@ -59,6 +62,10 @@ public final class ReadTool extends ToolBase {
 										PARAM_END, Map.of(
 												"type", "integer",
 												"description", "随机读取的终止行"
+										),
+										PARAM_LN, Map.of(
+												"type", "boolean",
+												"description", "返回内容是否带有行号，默认为 true，通常无需手动指定"
 										)
 								),
 								"required", List.of(PARAM_FILE)
@@ -72,6 +79,7 @@ public final class ReadTool extends ToolBase {
 	public Mono<PermissionDecision> checkPermissions(Map<String, Object> toolInput, PermissionContextState context) {
 		try {
 			String filename = (String) toolInput.getOrDefault(PARAM_FILE, "");
+			Objects.requireNonNull((Boolean) toolInput.getOrDefault(PARAM_LN, Boolean.TRUE), PARAM_LN);
 			if (StringUtils.isEmpty(filename)) {
 				return Mono.just(PermissionDecision.deny("文件路径不能为空"));
 			}
@@ -105,6 +113,8 @@ public final class ReadTool extends ToolBase {
 			return Mono.just(PermissionDecision.ask("非工作区内文件阅读需要授权"));
 		} catch (ClassCastException e) {
 			return Mono.just(PermissionDecision.deny("参数类型错误：" + e.getMessage()));
+		} catch (NullPointerException e) {
+			return Mono.just(PermissionDecision.deny("参数值非法：" + e.getMessage()));
 		}
 	}
 
@@ -114,37 +124,58 @@ public final class ReadTool extends ToolBase {
 		Integer tail = (Integer) param.getInput().get(PARAM_TAIL);
 		Integer begin = (Integer) param.getInput().get(PARAM_BEGIN);
 		Integer end = (Integer) param.getInput().get(PARAM_END);
+		Boolean ln = (Boolean) param.getInput().getOrDefault(PARAM_LN, Boolean.TRUE);
 		ClarinetLogger.debug("阅读文件 " + filename);
 
 		try {
 			if(tail == null) {
 				Path path = Paths.get(filename);
 				if(begin == null || end == null) {
+					List<String> lines = Files.readAllLines(path);
+					if(ln) {
+						lines = withLineNumber(lines, 1L);
+					}
 					return Mono.just(ToolResultBlock.of(
 							TextBlock.builder()
-									.text(StringUtils.join(Files.readAllLines(path), "\n"))
+									.text(StringUtils.join(lines, "\n"))
 									.build()
 					));
 				}
-				try (Stream<String> lines = Files.lines(path)) {
+				try (Stream<String> lineStream = Files.lines(path)) {
+					List<String> lines = lineStream.skip(begin - 1L)
+							.limit(end - begin + 1L)
+							.toList();
+					if(ln) {
+						lines = withLineNumber(lines, begin.longValue());
+					}
 					return Mono.just(ToolResultBlock.of(
-							TextBlock.builder().text(
-									lines.skip(begin - 1L)
-											.limit(end - begin + 1L)
-											.collect(Collectors.joining("\n"))
-							).build()
+							TextBlock.builder()
+									.text(StringUtils.join(lines, "\n"))
+									.build()
 					));
 				}
 			}
-			List<String> lines = Lists.newLinkedList();
+			LinkedList<String> lines = Lists.newLinkedList();
+			long reversedBegin = 1;
 			try (ReversedLinesFileReader reader = ReversedLinesFileReader.builder()
 					.setFile(filename)
 					.setCharset(StandardCharsets.UTF_8)
 					.get()) {
 				String line;
 				while (lines.size() < tail && (line = reader.readLine()) != null) {
-					lines.add(0, line);
+					lines.addFirst(line);
 				}
+				while (reader.readLine() != null) {
+					reversedBegin += 1;
+				}
+			}
+			if(ln) {
+				List<String> numbered = withLineNumber(lines, reversedBegin);
+				return Mono.just(ToolResultBlock.of(
+						TextBlock.builder()
+								.text(StringUtils.join(numbered, "\n"))
+								.build()
+				));
 			}
 			return Mono.just(ToolResultBlock.of(
 					TextBlock.builder()
@@ -155,5 +186,13 @@ public final class ReadTool extends ToolBase {
 			ClarinetLogger.warn("Failed to read file " + filename + ": ", e);
 			return Mono.just(ToolResultBlock.error(e.getMessage()));
 		}
+	}
+
+	private static List<String> withLineNumber(List<String> original, long start) {
+		ImmutableList.Builder<String> builder = ImmutableList.builder();
+		for(int i = 0; i < original.size(); ++i) {
+			builder.add((start + i) + ": " + original.get(i));
+		}
+		return builder.build();
 	}
 }

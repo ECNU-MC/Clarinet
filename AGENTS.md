@@ -29,7 +29,7 @@ Clarinet（柯拉妮）是一个基于 [AgentScope Harness](https://github.com/a
 | 缓存 | Caffeine `3.2.2`（会话与消息映射缓存） |
 | JSON | fastjson `2.0.60` / fastjson2 |
 | 工具库 | Guava `31.1-jre`、jsoup `1.21.2`、JSpecify / JSR-305 空值注解 |
-| 测试 | JUnit Platform（`useJUnitPlatform()`），测试代码目前以 `main` 方法为主 |
+| 测试 | JUnit 5（`useJUnitPlatform()`）+ Mockito `5.14.2`，单元测试不依赖数据库与网络 |
 
 ## 快速开始
 
@@ -53,6 +53,8 @@ gradlew.bat build   # 完整构建（编译 + 打包 + 测试）
 
 注意：`build.gradle` 仅启用 `java` 插件，未配置 `application` 插件与 `Main-Class`，因此产物 jar 不可直接 `java -jar` 运行，需要通过 IDE 或手动指定 classpath 启动。
 
+编码约定：`build.gradle` 通过 `tasks.withType(JavaCompile) { options.encoding = 'UTF-8' }` 统一 javac 编码，所有源码均为 UTF-8，请勿保存为 GBK，否则在中文 Windows 默认字符集下会编译失败。
+
 ### 运行
 
 主类：`org.ecnumc.clarinet.Clarinet`
@@ -64,9 +66,24 @@ gradlew.bat build   # 完整构建（编译 + 打包 + 测试）
 
 ### 测试
 
-`src/test` 下并非 JUnit 用例，而是带 `main` 方法的集成验证脚本（`DatabaseTest`、`convert/ContentConvertTest`），需要本地 MySQL 可用，在 IDE 中直接运行对应的 `main` 方法即可。
+单元测试基于 JUnit 5 + Mockito，运行：
 
-注意：测试脚本依赖本地 MySQL 与真实数据。
+```bash
+gradlew.bat test      # Windows
+./gradlew test        # Linux / macOS
+```
+
+全部单测通过 Mockito 模拟下游依赖，**不依赖本地 MySQL、不访问网络**：
+
+- `tool/*Test`：8 个工具各一份单测（`SendMessageToolTest`、`SendReactionToolTest`、`ReadToolTest`、`Base64EncodeToolTest`、`Base64DecodeToolTest`、`RecentAssistanceToolTest`、`StatsToolTest`、`CollectChatLogToolTest`），覆盖权限校验（`checkPermissions`）与执行逻辑（`callAsync`）；
+- `RecentAssistanceToolTest` / `StatsToolTest` 通过 mock `SqlSessionFactory` → `SqlSession` → `AssistanceMapper` 链路模拟数据访问；
+- `CollectChatLogToolTest` 直接 mock `SessionRepository`；
+- `ReadToolTest` 使用 `@TempDir` 临时文件，工作区授权分支使用真实工作区中的临时文件（测试后自动清理）；
+- `convert/ContentConvertTest` 通过 mock `CustomerRepository` 验证脱敏替换；
+- `repository/*Test`：`CustomerRepositoryTest`、`AssistanceQueryRepositoryTest`（mock `SqlSession` 链路）、`SessionRepositoryTest`（`@TempDir` 文件持久化，不依赖数据库）；
+- `support/ToolResults`：测试辅助类，将 `ToolResultBlock` 的文本内容拼接为字符串供断言。
+
+新增工具或修改下游交互时请同步维护对应 `*Test`，保持测试可独立运行、不落库。
 
 ## 配置说明
 
@@ -93,7 +110,7 @@ gradlew.bat build   # 完整构建（编译 + 打包 + 测试）
 
 ```
 clarinet/
-├── build.gradle                  # Gradle 构建脚本（依赖、Java 17、JUnit）
+├── build.gradle                  # Gradle 构建脚本（依赖、Java 17、JUnit/Mockito、UTF-8 编码）
 ├── settings.gradle               # rootProject.name = 'clarinet'
 ├── gradlew / gradlew.bat         # Gradle wrapper
 ├── gradle/wrapper/               # wrapper 配置（Gradle 9.2.1）
@@ -123,8 +140,21 @@ clarinet/
     │       └── mapper/                  # Mapper XML：CustomerMapper.xml、AssistanceMapper.xml
     └── test/
         └── java/org/ecnumc/clarinet/
-            ├── DatabaseTest.java        # 数据层集成验证（main 方法）
-            └── convert/ContentConvertTest.java  # 脱敏逻辑验证（main 方法）
+            ├── support/ToolResults.java        # 测试辅助：工具结果文本提取
+            ├── convert/ContentConvertTest.java # 脱敏逻辑单测（mock 用户仓库）
+            ├── repository/
+            │   ├── AssistanceQueryRepositoryTest.java  # 求助仓库单测（mock SqlSession）
+            │   ├── CustomerRepositoryTest.java         # 用户仓库单测（mock SqlSession）
+            │   └── SessionRepositoryTest.java          # 会话仓库单测（临时目录持久化）
+            └── tool/
+                ├── Base64DecodeToolTest.java
+                ├── Base64EncodeToolTest.java
+                ├── CollectChatLogToolTest.java
+                ├── ReadToolTest.java
+                ├── RecentAssistanceToolTest.java
+                ├── SendMessageToolTest.java
+                ├── SendReactionToolTest.java
+                └── StatsToolTest.java
 ```
 
 ## 分层设计
@@ -195,7 +225,7 @@ clarinet/
 | :--- | :--- | :--- |
 | `send_message` | `SendMessageTool` | 发送文本消息，是与提问者交互的唯一途径（长度 ≤ 4095） |
 | `send_reaction` | `SendReactionTool` | 发送表情包，12 种枚举（见 `bo.Reaction`），仅闲聊场景 |
-| `read` | `ReadTool` | 读文件：全量 / `tail` 末尾 N 行 / `begin`+`end` 区间；工作区内免授权，工作区外需授权 |
+| `read` | `ReadTool` | 读文件：全量 / `tail` 末尾 N 行 / `begin`+`end` 区间，默认附带行号（`line_number=false` 可关闭）；工作区内免授权，工作区外需授权 |
 | `base64_decode` | `Base64DecodeTool` | Base64 解码 |
 | `base64_encode` | `Base64EncodeTool` | Base64 编码 |
 | `recent_assistance` | `RecentAssistanceTool` | 查询用户近期求助历史（按 uid，默认 5 条，最多 100 条） |
@@ -214,9 +244,11 @@ clarinet/
 
 `AssistanceMapper.xml` 与 `CustomerMapper.xml` 中的 SQL 为实际执行语句，修改 SQL 时需保持 Mapper 接口、XML 与 `po` 字段三方一致。
 
+单元测试不访问数据库（下游链路均由 Mockito 模拟），数据库仅在运行服务与真实集成验证时使用。
+
 ## 开发约定
 
-1. **构建验证**：修改后执行 `gradlew.bat build` 确认完整构建（含编译与打包）通过；涉及 SQL 或数据层的改动，用 `src/test` 下的 `main` 方法脚本做集成验证（需本地 MySQL）。
+1. **构建验证**：修改后执行 `gradlew.bat build` 确认完整构建（编译 + 单元测试 + 打包）通过；单元测试通过 Mockito 模拟下游依赖，无需本地 MySQL；如需验证真实 SQL 或数据层，再在本地 MySQL 环境中手工验证。
 2. **命名与风格**：遵循仓库统一约定——类名大驼峰、方法/变量小驼峰、常量全大写加下划线、包名全小写；Javadoc 使用中文；可能为空的字段/参数/返回值使用 `@Nullable` 注解。
 3. **会话并发**：`MessageHandler` 对 `agent` 实例做了 `synchronized` 串行化，新增并发路径时不得绕过该锁并发调用同一 `HarnessAgent`。
 4. **新工具接入**：工具类需同时完成权限校验（`checkPermissions`）与注册（`Clarinet.main`），否则不会生效；只读工具应声明 `readOnly(true)` / `concurrencySafe(true)`。
