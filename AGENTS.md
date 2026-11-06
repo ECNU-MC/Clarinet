@@ -11,7 +11,7 @@ Clarinet（柯拉妮）是一个基于 [AgentScope Harness](https://github.com/a
 核心特征：
 
 - 面向 QQ 群聊的 Agent 服务，对外暴露 `POST /api/msg` 接口；
-- 智能体工具（Toolkit）驱动：读文件、Base64 编解码、查历史、发消息、发表情包；
+- 智能体工具（Toolkit）驱动：读文件、列举目录、提取 Markdown 大纲、Base64 编解码、查历史、发消息、发表情包；
 - 会话（Session）按 JSON 文件持久化，群聊上下文按群维护最近 100 条消息；
 - 用户、求助记录等业务数据存储于 MySQL（MyBatis-Plus）；
 - 消息脱敏：将 QQ 消息中的 `[CQ:at,qq=xxx]` 替换为不含 QQ 号的 `[at, uid=xxx]` 后再送入模型。
@@ -75,7 +75,7 @@ gradlew.bat test      # Windows
 
 全部单测通过 Mockito 模拟下游依赖，**不依赖本地 MySQL、不访问网络**：
 
-- `tool/*Test`：8 个工具各一份单测（`SendMessageToolTest`、`SendReactionToolTest`、`ReadToolTest`、`Base64EncodeToolTest`、`Base64DecodeToolTest`、`RecentAssistanceToolTest`、`StatsToolTest`、`CollectChatLogToolTest`），覆盖权限校验（`checkPermissions`）与执行逻辑（`callAsync`）；
+- `tool/*Test`：10 个工具各一份单测（`SendMessageToolTest`、`SendReactionToolTest`、`ReadToolTest`、`ListDirectoryToolTest`、`MdOutlineToolTest`、`Base64EncodeToolTest`、`Base64DecodeToolTest`、`RecentAssistanceToolTest`、`StatsToolTest`、`CollectChatLogToolTest`），覆盖权限校验（`checkPermissions`）与执行逻辑（`callAsync`）；
 - `RecentAssistanceToolTest` / `StatsToolTest` 通过 mock `SqlSessionFactory` → `SqlSession` → `AssistanceMapper` 链路模拟数据访问；
 - `CollectChatLogToolTest` 直接 mock `SessionRepository`；
 - `ReadToolTest` 使用 `@TempDir` 临时文件，工作区授权分支使用真实工作区中的临时文件（测试后自动清理）；
@@ -150,6 +150,8 @@ clarinet/
                 ├── Base64DecodeToolTest.java
                 ├── Base64EncodeToolTest.java
                 ├── CollectChatLogToolTest.java
+                ├── ListDirectoryToolTest.java
+                ├── MdOutlineToolTest.java
                 ├── ReadToolTest.java
                 ├── RecentAssistanceToolTest.java
                 ├── SendMessageToolTest.java
@@ -185,12 +187,13 @@ clarinet/
 │ SendMessageTool       │   │ repository.*（BaseRepository 模板方法   │
 │ SendReactionTool      │   │   封装 SqlSession 获取/提交）            │
 │ ReadTool              │   │   ├── SessionRepository（JSON 文件持久化 │
-│ Base64Encode/Decode   │   │   │   + Caffeine 缓存 + 群消息队列）     │
-│ RecentAssistanceTool  │   │   ├── CustomerRepository（用户）        │
-│ StatsTool             │   │   └── AssistanceQueryRepository        │
-│ CollectChatLogTool    │   │ mapper.*（MyBatis 接口 + XML）          │
-└───────────────────────┘   │ po.*（Customer / Assistance / Agendum）│
-                            └───────────────────────────────────────┘
+│ ListDirectoryTool     │   │   │   + Caffeine 缓存 + 群消息队列）     │
+│ MdOutlineTool         │   │   ├── CustomerRepository（用户）        │
+│ Base64Encode/Decode   │   │   └── AssistanceQueryRepository        │
+│ RecentAssistanceTool  │   │ mapper.*（MyBatis 接口 + XML）          │
+│ StatsTool             │   │ po.*（Customer / Assistance / Agendum）│
+│ CollectChatLogTool    │   │                                        │
+└───────────────────────┘   └───────────────────────────────────────┘
 ```
 
 各层职责：
@@ -206,7 +209,7 @@ clarinet/
 
 以收到一条 QQ 群消息为例，完整链路如下：
 
-1. 外部机器人转发消息到 `POST /api/msg`，请求体为 JSON：`group_id`、`message_id`、`role`、`type`（plain/image/file）、`user_id`、`user_name`、`content`、`sent_at`（`yyyy-MM-dd HH:mm:ss`）、可选 `replied_message` 对象；
+1. 外部机器人转发消息到 `POST /api/msg`，请求体为 JSON：`group_id`、`message_id`、`role`、`type`（plain/image/file/directory）、`user_id`、`user_name`、`content`、`sent_at`（`yyyy-MM-dd HH:mm:ss`）、可选 `replied_message` 对象；
 2. `MessageHandler` 解析请求，`ContentConvert.encode` 将 `[CQ:at,qq=xxx]` 脱敏为 `[at, uid=xxx]`；
 3. `CustomerRepository.getOrCreateCustomerByQq` 按 QQ 号查询用户，不存在则创建（默认 `NORMAL` 权限，`uid` 由 QQ 号 UUID 化生成）；
 4. `SessionRepository.addMessage` 将消息加入该群的消息上下文队列（每群最多保留最近 100 条）；
@@ -226,6 +229,8 @@ clarinet/
 | `send_message` | `SendMessageTool` | 发送文本消息，是与提问者交互的唯一途径（长度 ≤ 4095） |
 | `send_reaction` | `SendReactionTool` | 发送表情包，12 种枚举（见 `bo.Reaction`），仅闲聊场景 |
 | `read` | `ReadTool` | 读文件：全量 / `tail` 末尾 N 行 / `begin`+`end` 区间，默认附带行号（`line_number=false` 可关闭）；工作区内免授权，工作区外需授权 |
+| `list_directory` | `ListDirectoryTool` | 以 GNU tree 风格（`├──`/`└──`/`│`）列举目录，可选递归（默认 true）与按扩展名筛选文件；工作区内免授权，工作区外需授权 |
+| `md_outline` | `MdOutlineTool` | 提取 Markdown 标题大纲（“行号: 标题”，忽略代码块内标题，末尾输出“文档共 xx 行”），可选行号与最高标题级数（默认 6）；权限同 `read` |
 | `base64_decode` | `Base64DecodeTool` | Base64 解码 |
 | `base64_encode` | `Base64EncodeTool` | Base64 编码 |
 | `recent_assistance` | `RecentAssistanceTool` | 查询用户近期求助历史（按 uid，默认 5 条，最多 100 条） |

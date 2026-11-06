@@ -17,6 +17,7 @@ import static org.ecnumc.clarinet.Clarinet.SYSTEM_CONFIG;
 @Getter
 @AllArgsConstructor
 public enum MessageType {
+	DIRECTORY("directory"),
 	FILE("file"),
 	IMAGE("image"),
 	PLAIN("plain");
@@ -41,7 +42,7 @@ public enum MessageType {
 	 * @return 是否可以发起新会话
 	 */
 	public boolean canStartSession(String messageContent, Customer customer) {
-		return this == FILE || (messageContent.contains(SYSTEM_CONFIG.getWakeupWord()) && Permission.canStartSession(customer.getPermission()));
+		return this == DIRECTORY || (messageContent.contains(SYSTEM_CONFIG.getWakeupWord()) && Permission.canStartSession(customer.getPermission()));
 	}
 
 	static {

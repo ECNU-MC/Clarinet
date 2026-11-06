@@ -12,15 +12,19 @@ import org.apache.ibatis.session.SqlSessionFactory;
 import org.apache.ibatis.session.SqlSessionFactoryBuilder;
 import org.ecnumc.clarinet.config.SystemConfig;
 import org.ecnumc.clarinet.handler.MessageHandler;
+import org.ecnumc.clarinet.prompt.DefaultSystemPrompt;
 import org.ecnumc.clarinet.repository.CustomerRepository;
 import org.ecnumc.clarinet.repository.SessionRepository;
 import org.ecnumc.clarinet.state.ClarinetStateStore;
 import org.ecnumc.clarinet.tool.*;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -44,9 +48,8 @@ public final class Clarinet {
 	public static void main(String[] args) {
 		SqlSessionFactory sqlSessionFactory;
 		try {
-			String resource = "mybatis-config.xml";
-			InputStream inputStream = Resources.getResourceAsStream(resource);
-			sqlSessionFactory = new SqlSessionFactoryBuilder().build(inputStream);
+			InputStream inputStream = Resources.getResourceAsStream("mybatis-config.xml");
+			sqlSessionFactory = new SqlSessionFactoryBuilder().build(inputStream);	// 隐式契约，mybatis 底层实现里关闭了 inputStream
 		} catch (Exception e) {
 			throw new IllegalStateException("初始化 MyBatis 失败", e);
 		}
@@ -60,6 +63,10 @@ public final class Clarinet {
 		toolkit.registerAgentTool(new Base64EncodeTool());
 		toolkit.registerAgentTool(new CollectChatLogTool(sessionRepository));
 		toolkit.registerAgentTool(new ReadTool());
+		toolkit.registerAgentTool(new ListDirectoryTool());
+		toolkit.registerAgentTool(new MdOutlineTool());
+		toolkit.registerAgentTool(new SearchTool());
+		toolkit.registerAgentTool(new StatTool());
 		toolkit.registerAgentTool(new RecentAssistanceTool(sqlSessionFactory));
 		toolkit.registerAgentTool(new StatsTool(sqlSessionFactory));
 		try(HarnessAgent agent = HarnessAgent.builder()
@@ -128,5 +135,21 @@ public final class Clarinet {
 			throw new RuntimeException(e);
 		}
 		SYSTEM_CONFIG = SystemConfig.parse(Paths.get(WORKSPACE, "system.json"));
+
+		Path agentsMd = Paths.get(WORKSPACE, "AGENTS.md");
+		File agentsMdFile = agentsMd.toFile();
+		if(!agentsMdFile.exists()) {
+			try {
+				boolean success = agentsMdFile.createNewFile();
+				assert success;
+			} catch (IOException e) {
+				ClarinetLogger.warn("An I/O error occurred when creating empty AGENTS.md: ", e);
+			}
+			try(OutputStream os = Files.newOutputStream(agentsMd)) {
+				os.write(DefaultSystemPrompt.getDefaultSystemPrompt());
+			} catch (IOException | IllegalStateException e) {
+				ClarinetLogger.warn("An error occurred when saving default system prompt: ", e);
+			}
+		}
 	}
 }
