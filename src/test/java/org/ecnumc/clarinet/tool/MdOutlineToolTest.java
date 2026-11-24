@@ -29,15 +29,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MdOutlineToolTest {
 	private static final String CONTENT = String.join("\n",
 			"# Title",
+			"",
 			"some text",
+			"",
 			"## Section A",
-			"```java",
-			"# not a heading",
+			"",
+			"```python",
+			"# some comments not a heading",
 			"```",
+			"",
 			"### Sub",
 			"####### Too deep",
+			"",
 			"#no-space",
-			"## Section B"
+			"",
+			"## Section B",
+			"",
+			"text"
 	);
 
 	private final MdOutlineTool tool = new MdOutlineTool();
@@ -73,10 +81,10 @@ class MdOutlineToolTest {
 		assertEquals(
 				String.join("\n",
 						"1: # Title",
-						"3: ## Section A",
-						"7: ### Sub",
-						"10: ## Section B",
-						"文档共 10 行"
+						"5: ## Section A",
+						"11: ### Sub",
+						"16: ## Section B",
+						"文档共 18 行"
 				),
 				ToolResults.text(result)
 		);
@@ -95,7 +103,7 @@ class MdOutlineToolTest {
 						"## Section A",
 						"### Sub",
 						"## Section B",
-						"文档共 10 行"
+						"文档共 18 行"
 				),
 				ToolResults.text(result)
 		);
@@ -111,9 +119,9 @@ class MdOutlineToolTest {
 		assertEquals(
 				String.join("\n",
 						"1: # Title",
-						"3: ## Section A",
-						"10: ## Section B",
-						"文档共 10 行"
+						"5: ## Section A",
+						"16: ## Section B",
+						"文档共 18 行"
 				),
 				ToolResults.text(result)
 		);
@@ -129,10 +137,10 @@ class MdOutlineToolTest {
 		assertEquals(
 				String.join("\n",
 						"1: # Title",
-						"3: ## Section A",
-						"7: ### Sub",
-						"10: ## Section B",
-						"文档共 10 行"
+						"5: ## Section A",
+						"11: ### Sub",
+						"16: ## Section B",
+						"文档共 18 行"
 				),
 				ToolResults.text(result)
 		);

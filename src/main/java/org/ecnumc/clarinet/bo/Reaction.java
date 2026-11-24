@@ -19,7 +19,7 @@ public enum Reaction {
 	/** 这么强？！ */
 	IMPRESSED("impressed", "别人的行为取得了超乎预料的效果，令人赞叹或印象深刻"),
 	/** 老人地铁手机 */
-	CRINGEY("cringey", "看到了“雷人”或“辣眼睛”的文字、事物或现象"),
+	CRINGEY("cringey", "看到了“雷人”或“辣眼睛”的文字、事物或现象，亦或是感到不适"),
 	/** 嘲笑 */
 	LAUGHED("laughed", "吐槽某件事有喜感，令人发笑"),
 	/** 这扯不扯 */

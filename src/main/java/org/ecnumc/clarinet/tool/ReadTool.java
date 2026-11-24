@@ -12,6 +12,7 @@ import org.apache.commons.io.input.ReversedLinesFileReader;
 import org.apache.commons.lang3.StringUtils;
 import org.ecnumc.clarinet.Clarinet;
 import org.ecnumc.clarinet.ClarinetLogger;
+import org.ecnumc.clarinet.exception.ContentTooLargeException;
 import reactor.core.publisher.Mono;
 
 import java.io.File;
@@ -37,6 +38,8 @@ public final class ReadTool extends ToolBase {
 	private static final String PARAM_BEGIN = "begin";
 	private static final String PARAM_END = "end";
 	private static final String PARAM_LN = "line_number";
+
+	private static final long MAX_READABLE_SIZE = 10L * 1024L * 1024L;
 
 	/**
 	 * 构造函数
@@ -135,11 +138,9 @@ public final class ReadTool extends ToolBase {
 					if(ln) {
 						lines = withLineNumber(lines, 1L);
 					}
-					return Mono.just(ToolResultBlock.of(
-							TextBlock.builder()
-									.text(StringUtils.join(lines, "\n"))
-									.build()
-					));
+					String text = StringUtils.join(lines, "\n");
+					checkContentLength(text);
+					return Mono.just(ToolResultBlock.of(TextBlock.builder().text(text).build()));
 				}
 				try (Stream<String> lineStream = Files.lines(path)) {
 					List<String> lines = lineStream.skip(begin - 1L)
@@ -148,11 +149,9 @@ public final class ReadTool extends ToolBase {
 					if(ln) {
 						lines = withLineNumber(lines, begin.longValue());
 					}
-					return Mono.just(ToolResultBlock.of(
-							TextBlock.builder()
-									.text(StringUtils.join(lines, "\n"))
-									.build()
-					));
+					String text = StringUtils.join(lines, "\n");
+					checkContentLength(text);
+					return Mono.just(ToolResultBlock.of(TextBlock.builder().text(text).build()));
 				}
 			}
 			LinkedList<String> lines = Lists.newLinkedList();
@@ -171,12 +170,12 @@ public final class ReadTool extends ToolBase {
 			}
 			if(ln) {
 				List<String> numbered = withLineNumber(lines, reversedBegin);
-				return Mono.just(ToolResultBlock.of(
-						TextBlock.builder()
-								.text(StringUtils.join(numbered, "\n"))
-								.build()
-				));
+				String text = StringUtils.join(numbered, "\n");
+				checkContentLength(text);
+				return Mono.just(ToolResultBlock.of(TextBlock.builder().text(text).build()));
 			}
+			String text = StringUtils.join(lines, "\n");
+			checkContentLength(text);
 			return Mono.just(ToolResultBlock.of(
 					TextBlock.builder()
 							.text(StringUtils.join(lines, "\n"))
@@ -184,6 +183,8 @@ public final class ReadTool extends ToolBase {
 			));
 		} catch (IOException e) {
 			ClarinetLogger.warn("Failed to read file " + filename + ": ", e);
+			return Mono.just(ToolResultBlock.error(e.getMessage()));
+		} catch (ContentTooLargeException e) {
 			return Mono.just(ToolResultBlock.error(e.getMessage()));
 		}
 	}
@@ -194,5 +195,11 @@ public final class ReadTool extends ToolBase {
 			builder.add((start + i) + ": " + original.get(i));
 		}
 		return builder.build();
+	}
+
+	private static void checkContentLength(String content) throws ContentTooLargeException {
+		if(content.length() >= MAX_READABLE_SIZE) {
+			throw new ContentTooLargeException("内容长度为 " + content.length() + " 字符，超过 " + MAX_READABLE_SIZE + "，请减少读取行数。");
+		}
 	}
 }

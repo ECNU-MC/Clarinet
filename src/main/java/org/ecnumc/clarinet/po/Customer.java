@@ -25,9 +25,15 @@ public class Customer {
 	@TableField
 	private String qq;
 
+	/**
+	 * 称号（群主/管理员/其它）
+	 */
 	@TableField @Nullable
 	private String appellation;
 
+	/**
+	 * 权限
+	 */
 	@TableField
 	private String permission;
 

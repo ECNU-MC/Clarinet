@@ -20,6 +20,7 @@ public enum MessageType {
 	DIRECTORY("directory"),
 	FILE("file"),
 	IMAGE("image"),
+	VIDEO("video"),
 	PLAIN("plain");
 
 	private static final Map<String, MessageType> BY_CODE;

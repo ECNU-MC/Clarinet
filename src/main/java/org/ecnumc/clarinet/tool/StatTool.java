@@ -85,7 +85,7 @@ public final class StatTool extends ToolBase {
 
 		try {
 			long size = Files.size(Paths.get(filename));
-			return Mono.just(ToolResultBlock.text(this.formatSize(size)));
+			return Mono.just(ToolResultBlock.text(formatSize(size)));
 		} catch (IOException e) {
 			ClarinetLogger.warn("Failed to stat " + filename + ": ", e);
 			return Mono.just(ToolResultBlock.error(e.getMessage()));
@@ -98,7 +98,7 @@ public final class StatTool extends ToolBase {
 	 * @param bytes 字节数
 	 * @return 格式化后的大小
 	 */
-	private String formatSize(long bytes) {
+	public static String formatSize(long bytes) {
 		if(bytes < 1024) {
 			return bytes + " 字节";
 		}

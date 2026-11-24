@@ -68,7 +68,7 @@ public final class Clarinet {
 		toolkit.registerAgentTool(new SearchTool());
 		toolkit.registerAgentTool(new StatTool());
 		toolkit.registerAgentTool(new RecentAssistanceTool(sqlSessionFactory));
-		toolkit.registerAgentTool(new StatsTool(sqlSessionFactory));
+		toolkit.registerAgentTool(new AssistanceStatsTool(sqlSessionFactory));
 		try(HarnessAgent agent = HarnessAgent.builder()
 				.name("clarinet")
 				.model(getModel())
@@ -76,6 +76,8 @@ public final class Clarinet {
 				.stateStore(new ClarinetStateStore())
 				.toolkit(toolkit)
 				.compaction(CompactionConfig.builder().triggerTokens(160_000).build())
+				.disableMemoryTools().disableMemoryHooks()
+				.disableShellTool().disableFilesystemTools()
 				.build()) {
 			HttpServer server = HttpServer.create(new InetSocketAddress(SYSTEM_CONFIG.getPort()), 0);
 			server.createContext("/api/msg", new MessageHandler(

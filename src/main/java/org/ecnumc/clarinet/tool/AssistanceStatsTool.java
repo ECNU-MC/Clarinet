@@ -21,7 +21,7 @@ import java.util.Map;
  *
  * @author liudongyu
  */
-public final class StatsTool extends ToolBase {
+public final class AssistanceStatsTool extends ToolBase {
 	private static final String PARAM_UID = "uid";
 	public static final String PARAM_DATE = "date";
 	public static final String PARAM_DEALT = "dealt";
@@ -32,9 +32,9 @@ public final class StatsTool extends ToolBase {
 	 * 构造函数
 	 * @param sqlSessionFactory SQL 上下文
 	 */
-	public StatsTool(SqlSessionFactory sqlSessionFactory) {
+	public AssistanceStatsTool(SqlSessionFactory sqlSessionFactory) {
 		super(
-				ToolBase.builder().name("stats").description("获取当日用户求助总数")
+				ToolBase.builder().name("assistance_stats").description("获取当日用户求助总数")
 						.inputSchema(Map.of(
 								"type", "object",
 								"properties", Map.of(

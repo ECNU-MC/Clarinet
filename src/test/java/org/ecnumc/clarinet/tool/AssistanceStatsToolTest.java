@@ -29,7 +29,7 @@ import static org.mockito.Mockito.when;
  * @author liudongyu
  */
 @ExtendWith(MockitoExtension.class)
-class StatsToolTest {
+class AssistanceStatsToolTest {
 	@Mock
 	private SqlSessionFactory sqlSessionFactory;
 
@@ -39,7 +39,7 @@ class StatsToolTest {
 	@Mock
 	private AssistanceMapper assistanceMapper;
 
-	private StatsTool tool;
+	private AssistanceStatsTool tool;
 
 	/**
 	 * 将数据访问链路整体 mock 掉，避免真实访问数据库
@@ -48,7 +48,7 @@ class StatsToolTest {
 	void setUp() {
 		lenient().when(this.sqlSessionFactory.openSession()).thenReturn(this.sqlSession);
 		lenient().when(this.sqlSession.getMapper(AssistanceMapper.class)).thenReturn(this.assistanceMapper);
-		this.tool = new StatsTool(this.sqlSessionFactory);
+		this.tool = new AssistanceStatsTool(this.sqlSessionFactory);
 	}
 
 	/**

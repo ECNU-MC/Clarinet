@@ -32,7 +32,7 @@ public class SendMessageTool extends ToolBase {
 	 */
 	public SendMessageTool() {
 		super(
-				ToolBase.builder().name("send_message").description("发送消息，这是和提问者交互的唯一途径，如果你想让他们看到你的消息，必须调用这个工具")
+				ToolBase.builder().name("send_message").description("发送消息")
 						.inputSchema(Map.of(
 								"type", "object",
 								"properties", Map.of(

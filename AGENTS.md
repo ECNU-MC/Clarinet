@@ -11,7 +11,7 @@ Clarinet（柯拉妮）是一个基于 [AgentScope Harness](https://github.com/a
 核心特征：
 
 - 面向 QQ 群聊的 Agent 服务，对外暴露 `POST /api/msg` 接口；
-- 智能体工具（Toolkit）驱动：读文件、列举目录、提取 Markdown 大纲、Base64 编解码、查历史、发消息、发表情包；
+- 智能体工具（Toolkit）驱动：读文件、列举目录、提取 Markdown 大纲、搜索文件内容、获取文件大小、Base64 编解码、查历史、发消息、发表情包；
 - 会话（Session）按 JSON 文件持久化，群聊上下文按群维护最近 100 条消息；
 - 用户、求助记录等业务数据存储于 MySQL（MyBatis-Plus）；
 - 消息脱敏：将 QQ 消息中的 `[CQ:at,qq=xxx]` 替换为不含 QQ 号的 `[at, uid=xxx]` 后再送入模型。
@@ -75,8 +75,8 @@ gradlew.bat test      # Windows
 
 全部单测通过 Mockito 模拟下游依赖，**不依赖本地 MySQL、不访问网络**：
 
-- `tool/*Test`：10 个工具各一份单测（`SendMessageToolTest`、`SendReactionToolTest`、`ReadToolTest`、`ListDirectoryToolTest`、`MdOutlineToolTest`、`Base64EncodeToolTest`、`Base64DecodeToolTest`、`RecentAssistanceToolTest`、`StatsToolTest`、`CollectChatLogToolTest`），覆盖权限校验（`checkPermissions`）与执行逻辑（`callAsync`）；
-- `RecentAssistanceToolTest` / `StatsToolTest` 通过 mock `SqlSessionFactory` → `SqlSession` → `AssistanceMapper` 链路模拟数据访问；
+- `tool/*Test`：12 个工具各一份单测（`SendMessageToolTest`、`SendReactionToolTest`、`ReadToolTest`、`ListDirectoryToolTest`、`MdOutlineToolTest`、`SearchToolTest`、`StatToolTest`、`Base64EncodeToolTest`、`Base64DecodeToolTest`、`RecentAssistanceToolTest`、`AssistanceStatsToolTest`、`CollectChatLogToolTest`），覆盖权限校验（`checkPermissions`）与执行逻辑（`callAsync`）；
+- `RecentAssistanceToolTest` / `AssistanceStatsToolTest` 通过 mock `SqlSessionFactory` → `SqlSession` → `AssistanceMapper` 链路模拟数据访问；
 - `CollectChatLogToolTest` 直接 mock `SessionRepository`；
 - `ReadToolTest` 使用 `@TempDir` 临时文件，工作区授权分支使用真实工作区中的临时文件（测试后自动清理）；
 - `convert/ContentConvertTest` 通过 mock `CustomerRepository` 验证脱敏替换；
@@ -147,6 +147,7 @@ clarinet/
             │   ├── CustomerRepositoryTest.java         # 用户仓库单测（mock SqlSession）
             │   └── SessionRepositoryTest.java          # 会话仓库单测（临时目录持久化）
             └── tool/
+                ├── AssistanceStatsToolTest.java
                 ├── Base64DecodeToolTest.java
                 ├── Base64EncodeToolTest.java
                 ├── CollectChatLogToolTest.java
@@ -154,9 +155,10 @@ clarinet/
                 ├── MdOutlineToolTest.java
                 ├── ReadToolTest.java
                 ├── RecentAssistanceToolTest.java
+                ├── SearchToolTest.java
                 ├── SendMessageToolTest.java
                 ├── SendReactionToolTest.java
-                └── StatsToolTest.java
+                └── StatToolTest.java
 ```
 
 ## 分层设计
@@ -189,9 +191,11 @@ clarinet/
 │ ReadTool              │   │   ├── SessionRepository（JSON 文件持久化 │
 │ ListDirectoryTool     │   │   │   + Caffeine 缓存 + 群消息队列）     │
 │ MdOutlineTool         │   │   ├── CustomerRepository（用户）        │
-│ Base64Encode/Decode   │   │   └── AssistanceQueryRepository        │
-│ RecentAssistanceTool  │   │ mapper.*（MyBatis 接口 + XML）          │
-│ StatsTool             │   │ po.*（Customer / Assistance / Agendum）│
+│ SearchTool            │   │   └── AssistanceQueryRepository        │
+│ StatTool              │   │ mapper.*（MyBatis 接口 + XML）          │
+│ Base64Encode/Decode   │   │ po.*（Customer / Assistance / Agendum）│
+│ RecentAssistanceTool  │   │                                        │
+│ AssistanceStatsTool   │   │                                        │
 │ CollectChatLogTool    │   │                                        │
 └───────────────────────┘   └───────────────────────────────────────┘
 ```
@@ -231,10 +235,12 @@ clarinet/
 | `read` | `ReadTool` | 读文件：全量 / `tail` 末尾 N 行 / `begin`+`end` 区间，默认附带行号（`line_number=false` 可关闭）；工作区内免授权，工作区外需授权 |
 | `list_directory` | `ListDirectoryTool` | 以 GNU tree 风格（`├──`/`└──`/`│`）列举目录，可选递归（默认 true）与按扩展名筛选文件；工作区内免授权，工作区外需授权 |
 | `md_outline` | `MdOutlineTool` | 提取 Markdown 标题大纲（“行号: 标题”，忽略代码块内标题，末尾输出“文档共 xx 行”），可选行号与最高标题级数（默认 6）；权限同 `read` |
+| `search` | `SearchTool` | 在目录（默认整个工作区）或指定文件中按正则表达式查找，目录模式输出“文件:行号: 内容”、单文件模式输出“行号: 内容”；匹配行数超过上限（默认 2000）直接报错；权限同 `read` |
+| `stat` | `StatTool` | 获取文件大小（字节数 + 人类可读近似值，如“2048 字节（2.00 KB）”）；权限同 `read` |
 | `base64_decode` | `Base64DecodeTool` | Base64 解码 |
 | `base64_encode` | `Base64EncodeTool` | Base64 编码 |
 | `recent_assistance` | `RecentAssistanceTool` | 查询用户近期求助历史（按 uid，默认 5 条，最多 100 条） |
-| `stats` | `StatsTool` | 统计某日求助总数，支持按 uid / dealt（是否解决）筛选 |
+| `assistant_stats` | `AssistanceStatsTool` | 统计某日求助总数，支持按 uid / dealt（是否解决）筛选 |
 | `collect_chat_log` | `CollectChatLogTool` | 收集群聊最近若干条聊天记录 |
 
 新增工具的标准步骤：在 `tool` 包中继承 `ToolBase`，实现 `inputSchema` / `checkPermissions` / `callAsync`，最后在 `Clarinet.main` 中 `toolkit.registerAgentTool(...)` 注册。
